@@ -7,23 +7,46 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
+	"time"
 )
 
 func main() {
 	flag.Parse()
-	dirs := flag.Args()
-	fmt.Println("dirs", dirs)
-	//infos, err := ioutil.ReadDir(dirs[0])
-	walkDir(dirs[0])
+	roots := flag.Args()
+	if len(roots) == 0 {
+		roots = []string{"."}
+	}
+	filenames := make(chan string)
+	start := time.Now()
+	defer func() {
+		fmt.Printf("elapsed time: %v\n", time.Since(start))
+	}()
+	var wg sync.WaitGroup
+	for _, root := range roots {
+		wg.Add(1)
+		go walkDir(root, &wg, filenames)
+	}
+	go func() {
+		wg.Wait()
+		close(filenames)
+	}()
+	/*
+		for name := range filenames {
+			//	fmt.Println(name)
+		}
+	*/
 	fmt.Println("vim-go")
 }
 
-func walkDir(dir string) {
+func walkDir(dir string, wg *sync.WaitGroup, filenames chan<- string) {
+	defer wg.Done()
 	for _, entry := range dirents(dir) {
-		fmt.Println(entry.Name())
+		filenames <- entry.Name()
 		if entry.IsDir() {
+			wg.Add(1)
 			subdir := filepath.Join(dir, entry.Name())
-			walkDir(subdir)
+			go walkDir(subdir, wg, filenames)
 		}
 	}
 }
