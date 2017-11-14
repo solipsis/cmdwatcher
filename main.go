@@ -31,6 +31,7 @@ const (
 	Remove
 )
 
+// TODO: implement add and remove
 var ops = map[op]string{
 	Edit:   "Edit",
 	Add:    "Add",
@@ -66,7 +67,6 @@ func main() {
 	cache := newCache()
 	for file := range info {
 		cache.Lock()
-		//fmt.Printf("storing: %v with time %v\n", file.path, file.ts)
 		cache.internal[file.path] = file.ts
 		cache.Unlock()
 	}
@@ -74,6 +74,7 @@ func main() {
 	poll(cache, roots)
 }
 
+// scan directories starting at entries in roots
 func scanRoots(roots []string, res chan<- fileInfo) {
 	var wg sync.WaitGroup
 	for _, root := range roots {
@@ -88,13 +89,7 @@ func scanRoots(roots []string, res chan<- fileInfo) {
 
 }
 
-/*
-ticker := time.NewTicker(duration)
-<-ticker.C
-ticker.Stop
-*/
-
-// TODO GOROUTINE LEAK
+// Check for changes every interval. TODO: make command line flag
 func poll(c *cache, roots []string) {
 	tick := time.Tick(1000 * time.Millisecond)
 	for range tick {
@@ -121,6 +116,7 @@ func detectChanges(c *cache, roots []string) (change bool) {
 	return change
 }
 
+// recursively walk directories
 func walkDir(dir string, wg *sync.WaitGroup, info chan<- fileInfo) {
 	defer wg.Done()
 	for _, entry := range dirents(dir) {
@@ -153,6 +149,7 @@ func gulp() {
 	}
 }
 
+// get entries within a directory
 func dirents(dir string) []os.FileInfo {
 	sema <- struct{}{}
 	defer func() { <-sema }()
